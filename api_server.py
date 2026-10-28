@@ -17,28 +17,18 @@
 # # These are the names Vercel's Python runtime looks for.
 # application = app
 # handler = app
-import os
 import sys
 from pathlib import Path
 
-# Paths calculate karein
+# Backend folder ko Python path me add karein
 BASE_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = BASE_DIR / "backend"
 
-# sys.path me backend directory ko pehle number par inject karein
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
 
-# Direct backend.app.main se import karein taaki name conflict na ho
-try:
-    from backend.app.main import app
-except ModuleNotFoundError:
-    # Fallback agar backend root me ho
-    import importlib
-    main_mod = importlib.import_module("app.main")
-    app = getattr(main_mod, "app")
+# Backend ke app folder se main FastAPI instance import karein
+from app.main import app
 
 application = app
 handler = app
