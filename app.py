@@ -1,35 +1,44 @@
-import os
-from fastapi import FastAPI, Request, Response
-import httpx
+# """
+# FastAPI entrypoint for Vercel deployment.
+# Exports the FastAPI app instance from app/main.py.
+# """
+# import sys
+# import os
 
-# Top-level ASGI application instances for Vercel
-app = FastAPI(title="Construction Intelligence Platform Gateway")
+# # Ensure the backend directory itself is on sys.path
+# # so that 'app' package imports (e.g. app.config, app.routers) resolve correctly.
+# _backend_dir = os.path.dirname(__file__)
+# if _backend_dir not in sys.path:
+#     sys.path.insert(0, _backend_dir)
+
+# from app.main import app
+
+# # Ensure 'app', 'application', and 'handler' are all exported at top-level
+# # These are the names Vercel's Python runtime looks for.
+# application = app
+# handler = app
+import os
+import sys
+from pathlib import Path
+
+# Paths calculate karein
+BASE_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = BASE_DIR / "backend"
+
+# sys.path me backend directory ko pehle number par inject karein
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# Direct backend.app.main se import karein taaki name conflict na ho
+try:
+    from backend.app.main import app
+except ModuleNotFoundError:
+    # Fallback agar backend root me ho
+    import importlib
+    main_mod = importlib.import_module("app.main")
+    app = getattr(main_mod, "app")
+
 application = app
 handler = app
-
-@app.get("/")
-def root():
-    backend_url = os.environ.get("BACKEND_URL", "")
-    return {
-        "service": "app",
-        "backend_url_configured": bool(backend_url),
-        "status": "online"
-    }
-
-@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def proxy_to_backend(path: str, request: Request):
-    backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
-    target_url = f"{backend_url.rstrip('/')}/api/{path}"
-    headers = dict(request.headers)
-    headers.pop("host", None)
-    body = await request.body()
-    async with httpx.AsyncClient(timeout=35.0) as client:
-        res = await client.request(
-            method=request.method,
-            url=target_url,
-            headers=headers,
-            content=body,
-            params=dict(request.query_params)
-        )
-        return Response(content=res.content, status_code=res.status_code, headers=dict(res.headers))
-
